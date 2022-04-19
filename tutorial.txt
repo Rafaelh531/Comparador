@@ -1,0 +1,12 @@
+TUTORIAL:
+
+Para iniciar a comparação selecione um os arquivos através no menu "Arquivo"
+Podem ser selecionados arquivos Access (.accdb) ou Excel (.xlsx)
+Ao clicar em uma das opções duas janelas vão abrir em sequencia onde devem ser 
+selecionados os arquivos para a comparação
+Apos selecionar os arquivos a tabela deve ser selecionada através do seletor no topo
+da janela
+A comparação pode demorar de acordo com o tamanho das tabelas.
+
+É possível exportar as tabelas ou os resultados para arquivos Excel através
+do menu Exportar.
