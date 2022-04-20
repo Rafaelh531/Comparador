@@ -15,6 +15,7 @@ from pandastable import config
 from openpyxl.styles import PatternFill, Font
 from openpyxl.styles.borders import Border, Side
 
+global colore
 
 global path1
 global path2
@@ -32,7 +33,10 @@ def pinta_discrep():
     # que possuem os mesmos valores de comparação
     # e outros valores diferentes
     # ESSA FUNÇÃO DOBRA O TEMPO DE COMPILAÇÃO
-
+    vermelho = '#ff0000'
+    # laranja = '#ff8400'
+    vermelho_claro = '#fa9898'
+    verde_claro = '#98faa7'
     # passa pelo dataframe de discrepantes com passo de 2
     for i in range(0, table_discrep.shape[0]-1, 2):
         # obtem uma lista de booleanos indicando valores diferentes
@@ -42,31 +46,56 @@ def pinta_discrep():
         # Necessario pois por algum motivo a comparação NaN = NaN retorna False
         uq2 = table_discrep.iloc[i].isnull()
         uq2 = uq2.to_list()
-
         # percorre as listas e pinta de vermelho os valores diferentes
         for j in range(1, len(uq)):
             if uq[j] is True and uq2[j] is False:
-                pt_resul_discrep.setRowColors(rows=i, clr='#ff0000', cols=[j])
+                pt_resul_discrep.setRowColors(rows=i, clr=vermelho, cols=[j])
                 pt_resul_discrep.setRowColors(rows=i+1,
-                                              clr='#ff0000', cols=[j])
+                                              clr=vermelho, cols=[j])
 
     # Pinta os elementos discrepantes da tabela antiga
     indexes = table_discrep.index.tolist()
     for i in range(table_discrep.shape[0]):
         if i % 2 == 0:
-            pt1.setRowColors(rows=indexes[i]-1, clr='#ff0000', cols=[0, 1])
+            pt1.setRowColors(rows=indexes[i]-1, clr=vermelho, cols=[0, 1])
         else:
-            pt2.setRowColors(rows=indexes[i]-1, clr='#ff0000', cols=[0, 1])
+            pt2.setRowColors(rows=indexes[i]-1, clr=vermelho, cols=[0, 1])
 
     # Pinta os elementos novos na tabela nova
     indexes = table_novas.index.tolist()
     for i in range(table_novas.shape[0]):
-        pt2.setRowColors(rows=indexes[i]-1, clr='#fa9898', cols=[0, 1])
+        pt2.setRowColors(rows=indexes[i]-1, clr=vermelho_claro, cols=[0, 1])
 
     # Pinta os elementos excluidos na tabela antiga
     indexes = table_excluidas.index.tolist()
     for i in range(table_excluidas.shape[0]):
-        pt1.setRowColors(rows=indexes[i]-1, clr='#98faa7', cols=[0, 1])
+        pt1.setRowColors(rows=indexes[i]-1, clr=verde_claro, cols=[0, 1])
+
+
+def clear_table():
+
+    pt_resul_discrep.model.df = df
+    pt_resul_discrep.redraw()
+    pt_resul_discrep.autoResizeColumns()
+    pt_resul_discrep.showIndex()
+    pt_resul_discrep.redraw()
+    lbl_discrep.configure(text="LINHAS DISCREPANTES: ")
+
+    pt_resul_novas.model.df = df
+    pt_resul_novas.redraw()
+    pt_resul_novas.autoResizeColumns()
+    pt_resul_novas.showIndex()
+    pt_resul_novas.redraw()
+    lbl_novas.configure(text="LINHAS ADICIONADAS (presentes somente no "
+                             "arquivo novo): ")
+
+    pt_resul_excluidas.model.df = df
+    pt_resul_excluidas.redraw()
+    pt_resul_excluidas.autoResizeColumns()
+    pt_resul_excluidas.redraw()
+    pt_resul_excluidas.showIndex()
+    lbl_excluidas.configure(text="LINHAS EXCLUIDAS (presentes somente no"
+                            " arquivo antigo): ")
 
 
 def update_table():
@@ -91,10 +120,14 @@ def update_table():
 
     pt_resul_discrep.autoResizeColumns()
     pt_resul_discrep.contractColumns()
-    pt_resul_discrep.showIndex()
+    # pt_resul_discrep.showIndex()
     pt_resul_discrep.redraw()
     # Função que pinta os valores discrepantes
-    pinta_discrep()
+
+    global colore
+
+    if colore.get() is True:
+        pinta_discrep()
     # Deixa uma linha sem dados como a selecionada
     # A linha selecionada tem uma cor diferente
     # e não mostra os valores discrepantes pintados
@@ -119,7 +152,6 @@ def update_table():
                             " arquivo antigo): "
                             + str(table_excluidas.shape[0]))
     pt_resul_excluidas.model.df = table_excluidas
-    pt_resul_excluidas.autoResizeColumns()
     pt_resul_excluidas.autoResizeColumns()
     pt_resul_excluidas.showIndex()
     pt_resul_excluidas.redraw()
@@ -403,17 +435,18 @@ width = root.winfo_screenwidth()
 height = root.winfo_screenheight()
 # Faz com que a janela principal tenha o tamanho igual a resolução
 root.geometry("%dx%d" % (width, height))
-root.title("COMPARADOR ACCESS v0.1.2")
+root.title("COMPARADOR ACCESS v0.2")
 # Maximiza a janela principal
 root.state("zoomed")
 
 
 def select_campos():
     global campos
+
     def reset_campos():
         while len(campos) != 3:
             campos.append('Nenhum')
-            
+
     # # Quando a tabela é selecionada executa a comparação
     # def select_1(event):
     #     global campos
@@ -430,7 +463,7 @@ def select_campos():
     def try_compara():
         global campos
         reset_campos()
-        #campos = ['Nenhum', 'Nenhum', 'Nenhum']
+        # campos = ['Nenhum', 'Nenhum', 'Nenhum']
 
         campos[0] = selected_1.get()
         campos[1] = selected_2.get()
@@ -562,7 +595,7 @@ def select_file_access():
     # Função de seleção do banco antigo access
     global path1
     global path2
-
+    clear_table()
     while(True):
         file_types = (('Access Files', '*.accdb'), ('All files', '*.*'))
         file_name = fd.askopenfilename(title='SELECIONAR ARQUIVO ANTIGO',
@@ -605,7 +638,7 @@ def select_file_excel():
     # Função de seleção do banco antigo excell
     global path1
     global path2
-
+    clear_table()
     while(True):
         file_types = (('Excel Files', '*.xlsx'), ('All files', '*.*'))
         file_name = fd.askopenfilename(title='SELECIONAR ARQUIVO ANTIGO',
@@ -905,10 +938,15 @@ exportmenu.add_command(label="Exportar CSV relatório",
                        command=select_file_export_Relat)
 exportmenu.add_command(label="Exportar CSV Completo",
                        command=select_file_export_Complet)
-
+optionsmenu = tk.Menu(menubar, tearoff=0)
+colore = tk.BooleanVar()
+colore.set(False)
+optionsmenu.add_checkbutton(label='Colorir Ocorrencias',
+                            onvalue=1, offvalue=0, variable=colore)
 
 menubar.add_cascade(label="Arquivo", menu=filemenu)
 menubar.add_cascade(label="Exportar", menu=exportmenu)
+menubar.add_cascade(label="Opções", menu=optionsmenu)
 menubar.add_cascade(label="Ajuda", menu=helpmenu)
 root.config(menu=menubar)
 
