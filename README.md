@@ -18,7 +18,7 @@ Da maneira que está configurado, o algoritmo utiliza dos executáveis da pasta 
 O programa é capaz de exportar as tabelas carregadas e o relatório dos resultados para arquivos Excel (.xlsx) utilizando o menu exportar, caso o Excel esteja instalado na máquina o arquivo abre automaticamente. <br />
 Para ajuda de como o programa funciona existe um tutorial presente no menu 'ajuda'.<br />
 No menu opções existe a possibilidade de mudar a cor das células que possuem valores discrepantes e a localização das ocorrências nas abas das tabelas originais, entretanto essa opção aumenta consideravelmente o tempo de compilação (principalmente em tabelas grandes com muitas ocorrências) devido a iteração nos dataframes.
-Para inúmeras ocorrências existe um bug no visualizador do pacote pandastable onde as células são marcadas incorretamente após realizar uma rolagem pela tabela.<br /
+Para inúmeras ocorrências existe um bug no visualizador do pacote pandastable onde as células são marcadas incorretamente após realizar uma rolagem pela tabela.<br />
 
 ### Pacotes necessários:
 `$ pip install subprocess`<br />
