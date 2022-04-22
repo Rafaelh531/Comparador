@@ -104,13 +104,11 @@ def update_table():
     # Atualiza a tabela 1
     pt1.model.df = table1
     pt1.autoResizeColumns()
-    pt1.contractColumns()
     pt1.redraw()
 
     # Atualiza a tabela 2
     pt2.model.df = table2
     pt2.autoResizeColumns()
-    pt2.contractColumns()
     pt2.redraw()
 
     # Atualiza a tabela de discrepancias
@@ -119,8 +117,7 @@ def update_table():
                           + str(table_discrep1.shape[0]))
 
     pt_resul_discrep.autoResizeColumns()
-    pt_resul_discrep.contractColumns()
-    # pt_resul_discrep.showIndex()
+    pt_resul_discrep.showIndex()
     pt_resul_discrep.redraw()
     # Função que pinta os valores discrepantes
 
@@ -143,7 +140,6 @@ def update_table():
                         "arquivo novo): " + str(table_novas.shape[0]))
     pt_resul_novas.model.df = table_novas
     pt_resul_novas.autoResizeColumns()
-    pt_resul_novas.contractColumns()
     pt_resul_novas.showIndex()
     pt_resul_novas.redraw()
 
