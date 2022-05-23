@@ -1,4 +1,3 @@
-
 # PROGRAMA EM PYTHON PARA FAZER COMPARAÇÃO DE TABELAS EM ARQUIVOS ACCESS .accdb
 # Autor: Rafael Henrique da Rosa
 # Estagiário Divisão de Engenharia de Manutenção
@@ -6,22 +5,32 @@
 # Abril de 2022
 
 # TODO:*
-# Filtragem de texto (pesquisa)
-# Tirar a opção de colorir de um menu
-
+# FEITO Filtragem de texto (pesquisa)
+# FEITO Verificar o tamanho do arquivo para mudar o tipo de importação
+# FEITO tirar o filtro
+# FEITO Retirar o ponto nos inteiros (existe uma função comentada no codigo
+#       mas é pessima para tabelas grandes)
+# FEITO Criar um executavel sem a pasta
+# FEITO Verificar se a tabela existe nos dois bancos
+# FEITO Verificar se o arquivo novo e antigo não é o mesmo
+# FEITO Arrumar a exportação do relatório
+# FEITO Fazer uma logica de resize e move
 
 import subprocess
 import pandas as pd
 import os
 import tkinter as tk
 import openpyxl
-from tkinter import ttk, messagebox, filedialog as fd
+from tkinter import ttk, messagebox, Frame, Label, Entry, Toplevel
+from tkinter import filedialog as fd
+
 from pandastable import Table
 from pandastable import config
 from openpyxl.styles import PatternFill, Font
 from openpyxl.styles.borders import Border, Side
 import multiprocessing
-
+import regex as re
+import sys
 
 global colore
 
@@ -37,7 +46,18 @@ colunas = []
 table1 = pd.DataFrame()
 
 
+def resource_path(relative_path):
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 def pinta_discrep():
+
     # Função responsavel por mudar a cor das celulas
     # que possuem os mesmos valores de comparação
     # e outros valores diferentes
@@ -107,21 +127,31 @@ def clear_table():
                             " arquivo antigo): ")
 
 
-def update_table():
+def update_table(filtrado):
     # Função responsavel por atualizar as tabelas na interface após comparação
 
     # Atualiza a tabela 1
-    pt1.model.df = table1
+    if filtrado:
+        pt1.model.df = table1_filtrada
+    else:
+        pt1.model.df = table1
     pt1.autoResizeColumns()
     pt1.redraw()
 
     # Atualiza a tabela 2
-    pt2.model.df = table2
+    if filtrado:
+        pt2.model.df = table2_filtrada
+    else:
+        pt2.model.df = table2
     pt2.autoResizeColumns()
     pt2.redraw()
 
     # Atualiza a tabela de discrepancias
-    pt_resul_discrep.model.df = table_discrep
+    if filtrado:
+        pt_resul_discrep.model.df = table_discrep_filtrada
+    else:
+        pt_resul_discrep.model.df = table_discrep
+
     lbl_discrep.configure(text="LINHAS DISCREPANTES: "
                           + str(table_discrep1.shape[0]))
 
@@ -146,8 +176,11 @@ def update_table():
 
     # Atualiza a tabela das linhas novas
     lbl_novas.configure(text="LINHAS ADICIONADAS (presentes somente no "
-                        "arquivo novo): " + str(table_novas.shape[0]))
-    pt_resul_novas.model.df = table_novas
+                        "arquivo novo): " + str(table_novas.shape[0])),
+    if filtrado:
+        pt_resul_novas.model.df = table_novas_filtrada
+    else:
+        pt_resul_novas.model.df = table_novas
     pt_resul_novas.autoResizeColumns()
     pt_resul_novas.showIndex()
     pt_resul_novas.redraw()
@@ -156,7 +189,11 @@ def update_table():
     lbl_excluidas.configure(text="LINHAS EXCLUIDAS (presentes somente no"
                             " arquivo antigo): "
                             + str(table_excluidas.shape[0]))
-    pt_resul_excluidas.model.df = table_excluidas
+    if filtrado:
+        pt_resul_excluidas.model.df = table_excluidas_filtrada
+    else:
+        pt_resul_excluidas.model.df = table_excluidas
+
     pt_resul_excluidas.autoResizeColumns()
     pt_resul_excluidas.showIndex()
     pt_resul_excluidas.redraw()
@@ -165,7 +202,8 @@ def update_table():
 def process_importa_antigo(path, file1, selected_table):
     # Cria uma linha de comando e executa no cmd para importar o arquivo antigo
     # Funciona somente se mdb-export.exe existe na pasta mdbtools
-    export_command = path + '\\mdb-export.exe ' + file1
+    export_command = path
+    export_command += ' ' + file1
     export_command += ' '
     export_command += selected_table + '  > temp1.csv'
     # executa a linha de comando no cmd
@@ -177,7 +215,8 @@ def process_importa_antigo(path, file1, selected_table):
 def process_importa_novo(path, file2, selected_table):
     # Cria uma linha de comando e executa no cmd para importar o arquivo novo
     # Funciona somente se mdb-export.exe existe na pasta mdbtools
-    export_command = path + '\\mdb-export.exe ' + file2
+    export_command = path
+    export_command += ' ' + file2
     export_command += ' '
     export_command += selected_table + '  > temp2.csv'
     # subprocess.run(['cmd.exe', '/c', export_command])
@@ -197,25 +236,72 @@ def load_tables():
 
     file1 = path1
     file2 = path2
+    file_temp1 = path1
+    file_temp2 = path2
 
     # Caso a comparação seja em arquivos access:
     if file1.endswith('.accdb'):
+
+        # Corrige o nome do arquivo para funcionar o mdb-tools
+        # O nome do arquivo não pode ter espaço
+        if " " in file1:
+            file_temp1 = file1.replace(" ", "_")
+            os.rename(file1, file_temp1)
+        if " " in file2:
+
+            file_temp2 = file2.replace(" ", "_")
+            os.rename(file2, file_temp2)
+
+        # Pega o numero de linhas em cada tabela
+        path = resource_path('mdbtools\\mdb-count.exe')
+        export_command = path
+        export_command += ' ' + file_temp1
+        export_command += ' '
+        export_command += selected_table
+        rows1 = subprocess.check_output(
+                    export_command).decode()
+
+        export_command = path
+        export_command += ' ' + file_temp2
+        export_command += ' '
+        export_command += selected_table
+        rows2 = subprocess.check_output(
+                    export_command).decode()
+
         # Seleciona a pasta mdbtools que deve estar na mesma pasta do programa
-        path = os.getcwd() + "\\mdbtools"
+        path = resource_path('mdbtools\\mdb-export.exe')
 
         if __name__ == '__main__':
-            # Cria dois processos para importar os arquivos
-            p1 = multiprocessing.Process(
-                target=process_importa_antigo,
-                args=(path, file1, selected_table))
-            p1.start()
-            p2 = multiprocessing.Process(
-                target=process_importa_novo,
-                args=(path, file2, selected_table))
-            p2.start()
-            # Espera a importação para continuar na main
-            p1.join()
-            p2.join()
+
+            # Se as tabelas tiverem mais de 1000 linhas
+            # importa por dois processos
+            if int(rows1) > 1000 or int(rows2) > 1000:
+                # Cria dois processos para importar os arquivos
+                p1 = multiprocessing.Process(
+                    target=process_importa_antigo,
+                    args=(path, file_temp1, selected_table))
+                p1.start()
+                p2 = multiprocessing.Process(
+                    target=process_importa_novo,
+                    args=(path, file_temp2, selected_table))
+                p2.start()
+                # Espera a importação para continuar na main
+                p1.join()
+                p2.join()
+            # Caso as tabelas sejam menores importa diretamente
+            else:
+                export_command = path
+                export_command += ' ' + file_temp1
+                export_command += ' '
+                export_command += selected_table + '  > temp1.csv'
+                # executa a linha de comando no cmd
+                subprocess.run(['cmd.exe', '/c', export_command])
+
+                export_command = path
+                export_command += ' ' + file_temp2
+                export_command += ' '
+                export_command += selected_table + '  > temp2.csv'
+                subprocess.run(['cmd.exe', '/c', export_command])
         # importa o arquivo csv em um dataframe do pandas e exclui o arquivo
         # o encoding é necessário pois na tabela existe um caracter "°"
         try:
@@ -223,7 +309,7 @@ def load_tables():
             os.remove("temp1.csv")
         except Exception:
             messagebox.showinfo(
-                "ERRO", "nao encontrou aquivo csv")
+                "ERRO", "nao encontrou aquivo csv1")
 
         # Exclui linhas vazias
         df2 = table1[table1.isna().all(axis=1)]
@@ -244,8 +330,21 @@ def load_tables():
     # Caso a comparação seja em arquivos excel
     elif file1.endswith('.xlsx'):
 
-        table1 = pd.read_excel(open(file1, 'rb'), sheet_name=selected_table)
-        table2 = pd.read_excel(open(file2, 'rb'), sheet_name=selected_table)
+        table1 = pd.read_excel(
+            open(file_temp1, 'rb'), sheet_name=selected_table)
+        table2 = pd.read_excel(
+            open(file_temp2, 'rb'), sheet_name=selected_table)
+
+    # ajusta o tipo de variáveis dos dataframes
+    # APARENTEMENTE AUMENTA ABSURDAMENTE O TEMPO DE COMPARAÇÃO
+    # table1 = table1.convert_dtypes()
+    # table2 = table2.convert_dtypes()
+
+    # Renomeia os arquivos para o nome original
+    if(file_temp1 != file1):
+        os.rename(file_temp1, file1)
+    if(file_temp2 != file2):
+        os.rename(file_temp2, file2)
 
 
 def compara():
@@ -260,9 +359,9 @@ def compara():
     global campos
     # Copia os nomes das colunas das tabelas carregadas
     # para os 3 dataframes do relatório
-    table_novas = table2[0:0]
-    table_excluidas = table2[0:0]
-    table_discrep = table2[0:0]
+    # table_novas = table1[0:0]
+    # table_excluidas = table1[0:0]
+    # table_discrep = table1[0:0]
 
     # Preenche o dataframe table_excluidas com as
     # linhas que possuem valores de 'RTUNO' e 'PNTNO'
@@ -376,7 +475,7 @@ def compara():
     table_excluidas.index = temp_index
 
     # Função que atualiza as tabelas na interface
-    update_table()
+    update_table(0)
 
 
 ###########################################################
@@ -391,78 +490,163 @@ def compara():
 ###########################################################
 ###########################################################
 
-# Execuções na main
+# CRIA A JANELA PRINCIPAL
+root = tk.Tk()
+# Variáveis com a resolução da tela para ajustar a posição das tabelas
+width = root.winfo_screenwidth()
+height = root.winfo_screenheight()
+# Faz com que a janela principal tenha o tamanho igual a resolução
+root.geometry("%dx%d" % (width, height))
+root.title("COMPARADOR ACCESS v1.5")
+# Maximiza a janela principal
+root.state("zoomed")
+
 if __name__ == '__main__':
     multiprocessing.freeze_support()
 
     def myinfo():
         # Função que mostra as informações do algoritmo
         str_info = "Autor: Rafael Henrique da Rosa\n"
+        str_info += "Supervisor: Mauricio Menon\n"
         str_info += "Estagiário Itaipu Binacional- SMIN.DT - Abril de 2022\n"
-        str_info += "O algoritmo compara duas tabelas em arquivos access"
-        str_info += "excluidas,novas e discrepantes"
+        str_info += "O algoritmo compara duas tabelas em arquivos access "
+        str_info += "e exibe linhas "
+        str_info += "excluidas, novas e discrepantes."
 
         messagebox.showinfo("Info", str_info)
 
     def show_tutorial():
         # Função que exibe um pequeno tutorial
         # Abre o arquivo 'tutorial.txt' que deve estar na pasta do algoritmo
-        f = open("tutorial.txt", "rt", encoding='utf-8')
+        f = open(resource_path("tutorial.txt"), "rt", encoding='utf-8')
         x = f.read()
         # Mostra o conteudo do arquivo em uma messagebox
         messagebox.showinfo("Info", x)
 
     def close_root():
         # Função para confimar o fechamento da interface
-        if messagebox.askokcancel("SAIR", "Deseja Sair?"):
+        if messagebox.askyesno("SAIR", "Fechar o aplicativo?"):
             root.destroy()
 
     # dataframe temporário para exibir linhas em branco ao iniciar o programa
     # Unicamente estético, não altera performance
     df = pd.DataFrame({
-        'A': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'B': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'C': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'D': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'E': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'F': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'G': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'H': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'I': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'J': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'K': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'L': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'M': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'N': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
-        'O': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-              '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'A': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'B': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'C': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'D': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'E': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'F': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'G': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'H': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'I': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'J': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'K': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'L': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'M': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'N': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'O': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'P': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'Q': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'R': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'S': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'T': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+        'U': ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
     })
 
-    # CRIA A JANELA PRINCIPAL
+    def unfilter():
+        btn.place_forget()
+        label3.place_forget()
+        update_table(0)
 
-    root = tk.Tk()
-    # Variáveis com a resolução da tela para ajustar a posição das tabelas
-    width = root.winfo_screenwidth()
-    height = root.winfo_screenheight()
-    # Faz com que a janela principal tenha o tamanho igual a resolução
-    root.geometry("%dx%d" % (width, height))
-    root.title("COMPARADOR ACCESS v0.2.1")
-    # Maximiza a janela principal
-    root.state("zoomed")
+    btn = ttk.Button(root, text="X", command=unfilter)
+    btn.place(x=width-200-22, y=50, height=20, width=20)
+    label3 = ttk.Label(text="Filtro: RTUNO")
+    label3.place(x=width-200, y=50, height=20, width=200)
+    btn.place_forget()
+    label3.place_forget()
+    # PARTE DA PESQUISA
+
+    def filtra():
+        global campo_pesquisa
+        global table1_filtrada
+        global table2_filtrada
+        global table_discrep_filtrada
+        global table_excluidas_filtrada
+        global table_novas_filtrada
+
+        table1_filtrada = table1.astype(str)
+        table2_filtrada = table2.astype(str)
+        table_discrep_filtrada = table_discrep.astype(str)
+        table_excluidas_filtrada = table_excluidas.astype(str)
+        table_novas_filtrada = table_novas.astype(str)
+
+        table1_filtrada = table1_filtrada[
+            table1_filtrada[campo_pesquisa].str.contains(
+                texto_pesquisa, flags=re.IGNORECASE)]
+        table2_filtrada = table2_filtrada[table2_filtrada[
+            campo_pesquisa].str.contains(texto_pesquisa, flags=re.IGNORECASE)]
+        table_discrep_filtrada = table_discrep_filtrada[
+            table_discrep_filtrada[campo_pesquisa].str.contains(
+                texto_pesquisa, flags=re.IGNORECASE)]
+        table_excluidas_filtrada = table_excluidas_filtrada[
+            table_excluidas_filtrada[campo_pesquisa].str.contains(
+                texto_pesquisa, flags=re.IGNORECASE)]
+        table_novas_filtrada = table_novas_filtrada[
+            table_novas_filtrada[campo_pesquisa].str.contains(
+                texto_pesquisa, flags=re.IGNORECASE)]
+        update_table(1)
+        label3.config(text="FILTRO: " + texto_pesquisa)
+        btn.place(x=width-200-22, y=50, height=20, width=20)
+        label3.place(x=width-200, y=50, height=20, width=200)
+
+    def find():
+
+        if table1.empty or table2.empty:
+            messagebox.showinfo(
+                "ERRO", "Banco de dados não selecionados")
+        else:
+            colunas_pesquisar = colunas
+            colunas_pesquisar.pop(0)
+            # colunas_pesquisar.insert(0, "TODOS")
+            child_w = Toplevel(root)
+            child_w.geometry("450x110")
+            child_w.grab_set()
+            child_w.title("FILTRAGEM")
+            Frm = Frame(child_w)
+            Label(Frm, text='Enter Word to Find:')
+            # Label.place(x=0, y=50, height=250, width=750)
+            Frm.place(x=0, y=0, height=110, width=450)
+            modu = Entry(Frm)
+            modu.place(x=10, y=30, height=30, width=200)
+            modu.focus_set()
+
+            buttn = ttk.Button(Frm, text='FILTRAR')
+            buttn.place(x=450/2-40, y=70, height=35, width=80)
+            # Create Label in Mainwindow and Childwindow
+            label_child = Label(child_w, text="Pesquisar por:")
+            label_child.place(x=10+200/2-40, y=0, height=20, width=80)
+
+            label_child2 = Label(child_w, text="Nos campos:")
+            label_child2.place(x=450/2+80, y=0, height=20, width=80)
+
+            selected = tk.StringVar()
+            c2_cb = ttk.Combobox(child_w, width=50, textvariable=selected)
+            c2_cb['values'] = colunas_pesquisar
+            c2_cb['state'] = 'readonly'
+            c2_cb.pack(fill=tk.X, padx=5, pady=5)
+            c2_cb.place(x=450/2+15, y=30, height=30, width=200)
+            # c2_cb.current(0)
+
+            def xx():
+                global texto_pesquisa
+                global campo_pesquisa
+                texto_pesquisa = modu.get()
+                campo_pesquisa = selected.get()
+                child_w.destroy()
+                filtra()
+
+            buttn.config(command=xx)
 
     def select_campos():
         global campos
@@ -556,22 +740,27 @@ if __name__ == '__main__':
         if file_type == 'access':
             # Cria a linha de comando no cmd que executa o arquivo mdb-tables
             # e guarda o output na lista
-            path = os.getcwd() + "\\mdbtools"
-            print(path)
-            print(path1)
+            path = resource_path('mdbtools\\mdb-tables.exe')
             output_tables = subprocess.check_output(
-                [path + '\\mdb-tables.exe', path1]).decode()
+                [path, path1]).decode()
             output_tables = output_tables.split()
+
+            path = resource_path('mdbtools\\mdb-tables.exe')
+            output_tables2 = subprocess.check_output(
+                [path, path2]).decode()
+            output_tables2 = output_tables2.split()
 
         # Caso seja arquivo excel:
         elif file_type == 'excel':
             try:
                 table_obj = openpyxl.load_workbook(path1)
+                table_obj2 = openpyxl.load_workbook(path2)
 
             except openpyxl.utils.exceptions.InvalidFileException:
                 print("ai realmente não ta abrindo o arquivo antigo")
             # Guarda o nome dos sheets na lista
             output_tables = table_obj.sheetnames
+            output_tables2 = table_obj2.sheetnames
 
         # Cria uma label para indicar que a tabela deve ser selecionada
         label = ttk.Label(text="Selecione a tabela para comparar:")
@@ -589,9 +778,12 @@ if __name__ == '__main__':
         def month_changed(event):
             global selected_table
             selected_table = selected_month.get()
-            load_tables()
-            select_campos()
-
+            if selected_table in output_tables2:
+                load_tables()
+                select_campos()
+            else:
+                messagebox.showinfo(
+                    "ERRO", "TABELA NÃO EXISTE NO ARQUIVO NOVO")
         month_cb.bind('<<ComboboxSelected>>', month_changed)
 
     def select_file_access2():
@@ -609,6 +801,8 @@ if __name__ == '__main__':
                 messagebox.showinfo
                 ("ERRO", "SELECIONE UM ARQUIVO ACCESS (.accdb)")
                 break
+            if path1 == path2:
+                messagebox.showinfo("ERRO", "ARQUIVOS SELECIONADOS IGUAIS")
             else:
                 break
 
@@ -652,6 +846,8 @@ if __name__ == '__main__':
                 messagebox.showinfo(
                     "ERRO", "SELECIONE UM ARQUIVO EXCEL (.xlsx)")
                 break
+            if path1 == path2:
+                messagebox.showinfo("ERRO", "ARQUIVOS SELECIONADOS IGUAIS")
             else:
                 break
 
@@ -775,43 +971,43 @@ if __name__ == '__main__':
                 i, 1).value = table_sheet_resul_obj.cell(i, 1).value + 1
 
         # se for uma exportação completa com os 3 sheets
-        if is_complet:
-            # Pinta as linhas discrepantes de vermelho
-            for i in range(2, table_discrep.shape[1]+2):
-                for j in range(5, table_discrep.shape[0]+5):
-                    table_sheet_resul_obj.cell(j, i).border = borda_fina
 
-                    if j % 2 == 1:
-                        if i != 2:
-                            if table_sheet_resul_obj.cell(
-                                    j, i).value != table_sheet_resul_obj.cell(
-                                        j+1, i).value:
-                                table_sheet_resul_obj.cell(
-                                    j, i).fill = vermelho
-                                table_sheet_resul_obj.cell(
-                                    j+1, i).fill = vermelho
-                                if is_complet:
-                                    for k in range(1, table_discrep.shape[1]):
-                                        table_sheet_antigo_obj.cell(
-                                            table_sheet_resul_obj.cell(
-                                                j, 1).value, k).fill = vermelho
-                                        table_sheet_novo_obj.cell(
-                                            table_sheet_resul_obj.cell(
-                                                j+1, 1).value,
-                                            k).fill = vermelho
+        # Pinta as linhas discrepantes de vermelho
+        for i in range(2, table_discrep.shape[1]+2):
+            for j in range(5, table_discrep.shape[0]+5):
+                table_sheet_resul_obj.cell(j, i).border = borda_fina
 
-            # Pinta as linhas novas de vermelho claro
-            for i in range(2, table_novas.shape[1]+2):
-                for j in range(table_discrep.shape[0]+5+4,
-                               table_discrep.shape[0] + 5
-                               + 4 + table_novas.shape[0]):
-                    table_sheet_resul_obj.cell(j, i).border = borda_fina
-                    table_sheet_resul_obj.cell(j, i).fill = vermelho_claro
-                    if is_complet:
-                        for k in range(1, table_novas.shape[1]):
-                            table_sheet_novo_obj.cell(
-                                table_sheet_resul_obj.cell(
-                                    j, 1).value, k).fill = vermelho_claro
+                if j % 2 == 1:
+                    if i != 2:
+                        if table_sheet_resul_obj.cell(
+                                j, i).value != table_sheet_resul_obj.cell(
+                                    j+1, i).value:
+                            table_sheet_resul_obj.cell(
+                                j, i).fill = vermelho
+                            table_sheet_resul_obj.cell(
+                                j+1, i).fill = vermelho
+                            if is_complet:
+                                for k in range(1, table_discrep.shape[1]):
+                                    table_sheet_antigo_obj.cell(
+                                        table_sheet_resul_obj.cell(
+                                            j, 1).value, k).fill = vermelho
+                                    table_sheet_novo_obj.cell(
+                                        table_sheet_resul_obj.cell(
+                                            j+1, 1).value,
+                                        k).fill = vermelho
+
+        # Pinta as linhas novas de vermelho claro
+        for i in range(2, table_novas.shape[1]+2):
+            for j in range(table_discrep.shape[0]+5+4,
+                           table_discrep.shape[0] + 5
+                           + 4 + table_novas.shape[0]):
+                table_sheet_resul_obj.cell(j, i).border = borda_fina
+                table_sheet_resul_obj.cell(j, i).fill = vermelho_claro
+                if is_complet:
+                    for k in range(1, table_novas.shape[1]):
+                        table_sheet_novo_obj.cell(
+                            table_sheet_resul_obj.cell(
+                                j, 1).value, k).fill = vermelho_claro
 
             # Pinta as linhas excluidas de verde
             for i in range(2, table_excluidas.shape[1]+2):
@@ -952,11 +1148,11 @@ if __name__ == '__main__':
     menubar = tk.Menu(root)
 
     filemenu = tk.Menu(menubar, tearoff=0)
-    filemenu.add_command(label="SELECIONAR ARQUIVO ACCESS (.accdb)",
+    filemenu.add_command(label="Selecionar Arquivo Access (.accdb)",
                          command=select_file_access)
-    filemenu.add_command(label="SELECIONAR ARQUIVO EXCEL (.xlsx)",
+    filemenu.add_command(label="Selecionar Arquivo Excel (.xlsx)",
                          command=select_file_excel)
-    filemenu.add_command(label="SAIR", command=close_root)
+    filemenu.add_command(label="Sair", command=close_root)
     helpmenu = tk.Menu(menubar, tearoff=0)
     helpmenu.add_command(label="Como usar", command=show_tutorial)
     helpmenu.add_command(label="Sobre o programa", command=myinfo)
@@ -972,8 +1168,9 @@ if __name__ == '__main__':
     optionsmenu = tk.Menu(menubar, tearoff=0)
     colore = tk.BooleanVar()
     colore.set(False)
-    optionsmenu.add_checkbutton(label='Colorir Ocorrencias',
+    optionsmenu.add_checkbutton(label='Colorir Ocorrencias (BETA)',
                                 onvalue=1, offvalue=0, variable=colore)
+    optionsmenu.add_command(label="Filtrar", command=find)
 
     menubar.add_cascade(label="Arquivo", menu=filemenu)
     menubar.add_cascade(label="Exportar", menu=exportmenu)
@@ -991,7 +1188,27 @@ if __name__ == '__main__':
     tabControl.add(tab2, text='ARQUIVO ANTIGO')
     tabControl.add(tab3, text='ARQUIVO NOVO')
 
+    #  from tkinter import BOTH, LEFT,RIGHT
+    # container = Frame(tabControl)
+    # container.place(x=0, y=100, height=height, width=width)
+    # canvas = tk.Canvas(container, width=width, height=height)
+    # canvas.place(x=0, y=70, height=height, width=width)
+    # scroll = tk.Scrollbar(container, command=canvas.yview)
+    # canvas.config(yscrollcommand=scroll.set, scrollregion=(0,0,100,1000))
+    # canvas.pack(side=LEFT, fill=BOTH, expand=True)
+    # scroll.pack(side=RIGHT, fill=tk.Y)
+
+    canvas1 = tk.Canvas(tab1, width=width, height=height)
+    # scroll = tk.Scrollbar(tab1, command=canvas1.yview)
+    # canvas1.config(yscrollcommand=scroll.set, scrollregion=(0,0,0,1500))
+    canvas1.place(x=0, y=0, height=height, width=width)
+    # scroll.place(x=width-20, y=0, height=height, width=16)
+
     # Adiciona o frame da tabela antiga na aba 'arquivo antigo'
+    frameOne = Frame(canvas1, width=width, height=450)
+    canvas1.create_window(0, 0, anchor=tk.NW,
+                          window=frameOne, width=width, height=height)
+
     frame1 = tk.Frame(tab2)
     frame1.place(x=0, y=0, height=height-178, width=width)
     pt1 = Table(frame1)
@@ -1011,16 +1228,16 @@ if __name__ == '__main__':
     pt2.autoResizeColumns()
     pt2.autoResizeColumns()
     pt2.redraw()
-
+    factor = 3.3
     # Label das linhas discrepantes
-    lbl_discrep = ttk.Label(tab1, text="LINHAS DISCREPANTES:",
+    lbl_discrep = ttk.Label(frameOne, text="LINHAS DISCREPANTES:",
                             font='Helvetica 12 bold')
-    lbl_discrep.place(x=0, y=0, height=22, width=width)
+    lbl_discrep.place(x=0, y=0, height=22, width=width-30)
 
     # Adiciona um frame para exibir as linhas discrepantes
-    frame_resul_discrep = tk.Frame(tab1)
+    frame_resul_discrep = tk.Frame(frameOne)
     frame_resul_discrep.place(x=0, y=20,
-                              height=(height/4.5), width=width)
+                              height=(height/factor)-(22*3), width=width)
     pt_resul_discrep = Table(frame_resul_discrep)
     pt_resul_discrep.model.df = df
     options = {
@@ -1033,16 +1250,16 @@ if __name__ == '__main__':
     pt_resul_discrep.redraw()
 
     # Label das linhas novas
-    lbl_novas = ttk.Label(tab1, text="LINHAS ADICIONADAS "
+    lbl_novas = ttk.Label(frameOne, text="LINHAS ADICIONADAS "
                           "(presentes somente no arquivo novo):",
                           font='Helvetica 12 bold')
-    lbl_novas.place(x=0, y=(height/4.5)+25,
+    lbl_novas.place(x=0, y=(height/factor)+25-(22*3),
                     height=22, width=width)
 
     # Adiciona um frame para exibir as linhas novas
-    frame_resul_novas = tk.Frame(tab1)
-    frame_resul_novas.place(x=0, y=(height/4.5)+25+25,
-                            height=(height/4.5), width=width)
+    frame_resul_novas = tk.Frame(frameOne)
+    frame_resul_novas.place(x=0, y=(height/factor)+25+25-(22*3),
+                            height=(height/factor)-(22*3), width=width)
     pt_resul_novas = Table(frame_resul_novas)
     pt_resul_novas.model.df = df
     options = {
@@ -1055,16 +1272,18 @@ if __name__ == '__main__':
     pt_resul_novas.redraw()
 
     # Label das linhas excluidas
-    lbl_excluidas = ttk.Label(tab1,
+    lbl_excluidas = ttk.Label(frameOne,
                               text="LINHAS EXCLUIDAS "
                               "(presentes somente no arquivo antigo):",
                               font='Helvetica 12 bold')
-    lbl_excluidas.place(x=0, y=((height/4.5)*2+25+30), height=22, width=width)
+    lbl_excluidas.place(x=0, y=((height/factor)*2+25+30)-(22*3*2),
+                        height=22, width=width)
 
     # Adiciona um frame para exibir as linhas excluidas
-    frame_resul_excluidas = tk.Frame(tab1)
-    frame_resul_excluidas.place(x=0, y=(height/4.5)*2+25+25+30,
-                                height=(height/4.5), width=width)
+    frame_resul_excluidas = tk.Frame(frameOne)
+    frame_resul_excluidas.place(x=0, y=(height/factor)*2+25+25+30-(22*3*2),
+                                height=(height/factor)-(22*3), width=width)
+
     pt_resul_excluidas = Table(frame_resul_excluidas)
 
     pt_resul_excluidas.model.df = df
@@ -1079,8 +1298,43 @@ if __name__ == '__main__':
     pt_resul_excluidas.show()
     pt_resul_excluidas.redraw()
 
-    # Comando quando a janela é fechada
     root.protocol("WM_DELETE_WINDOW", close_root)
 
+    image_path = resource_path("icone.ico")
+    root.iconbitmap(image_path)
+
+    def resize(event):
+        global width, height
+        global scroll, canvas1
+        if (width != root.winfo_width()) and (height != root.winfo_width()):
+            # print("here")
+            width = event.width
+            height = event.height
+            factor = 2.95
+            lbl_discrep.place(x=0, y=0, height=22, width=width)
+            frame_resul_discrep.place(x=0, y=20,
+                                      height=(height/factor)-(22*3),
+                                      width=width)
+
+            lbl_novas.place(x=0, y=(height/factor)+25-(22*3),
+                            height=22, width=width)
+            frame_resul_novas.place(x=0, y=(height/factor)+25+25-(22*3),
+                                    height=(height/factor)-(22*3), width=width)
+
+            lbl_excluidas.place(x=0, y=((height/factor)*2+25+30)-(22*3*2),
+                                height=22, width=width)
+            frame_resul_excluidas.place(x=0,
+                                        y=(height/factor)*2+25+25+30-(22*3*2),
+                                        height=(height/factor)-(22*3),
+                                        width=width)
+
+            frame1.place(x=0, y=0, height=height-100, width=width)
+            frame2.place(x=0, y=0, height=height-100, width=width)
+            # scroll.place(x=width-20, y=0, height=height, width=16)
+            # print(
+            # f"The width of Toplevel is {width} and the height of Toplevel "
+            #      f"is {height}")
+
+    root.bind("<Configure>", resize)
     # Loop janela principal
     root.mainloop()
