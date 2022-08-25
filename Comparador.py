@@ -106,6 +106,7 @@ def clear_table():
     pt_resul_discrep.model.df = df
     pt_resul_discrep.redraw()
     pt_resul_discrep.autoResizeColumns()
+    pt_resul_discrep.show()
     pt_resul_discrep.showIndex()
     pt_resul_discrep.redraw()
     lbl_discrep.configure(text="LINHAS DISCREPANTES: ")
@@ -113,6 +114,7 @@ def clear_table():
     pt_resul_novas.model.df = df
     pt_resul_novas.redraw()
     pt_resul_novas.autoResizeColumns()
+    pt_resul_novas.show()
     pt_resul_novas.showIndex()
     pt_resul_novas.redraw()
     lbl_novas.configure(text="LINHAS ADICIONADAS (presentes somente no "
@@ -121,6 +123,7 @@ def clear_table():
     pt_resul_excluidas.model.df = df
     pt_resul_excluidas.redraw()
     pt_resul_excluidas.autoResizeColumns()
+    pt_resul_excluidas.show()
     pt_resul_excluidas.redraw()
     pt_resul_excluidas.showIndex()
     lbl_excluidas.configure(text="LINHAS EXCLUIDAS (presentes somente no"
@@ -137,6 +140,7 @@ def update_table(filtrado):
         pt1.model.df = table1
     pt1.autoResizeColumns()
     pt1.redraw()
+    pt1.show()
 
     # Atualiza a tabela 2
     if filtrado:
@@ -145,6 +149,7 @@ def update_table(filtrado):
         pt2.model.df = table2
     pt2.autoResizeColumns()
     pt2.redraw()
+    pt2.show()
 
     # Atualiza a tabela de discrepancias
     if filtrado:
@@ -156,8 +161,11 @@ def update_table(filtrado):
                           + str(table_discrep1.shape[0]))
 
     pt_resul_discrep.autoResizeColumns()
+    pt_resul_discrep.show()
     pt_resul_discrep.showIndex()
     pt_resul_discrep.redraw()
+    pt_resul_discrep.autoResizeColumns()
+    pt_resul_discrep.show()
     # Função que pinta os valores discrepantes
 
     global colore
@@ -182,9 +190,11 @@ def update_table(filtrado):
     else:
         pt_resul_novas.model.df = table_novas
     pt_resul_novas.autoResizeColumns()
+    pt_resul_novas.show()
     pt_resul_novas.showIndex()
     pt_resul_novas.redraw()
-
+    pt_resul_novas.autoResizeColumns()
+    pt_resul_novas.show() 
     # Atualiza a tabela das linhas excluidas
     lbl_excluidas.configure(text="LINHAS EXCLUIDAS (presentes somente no"
                             " arquivo antigo): "
@@ -195,8 +205,11 @@ def update_table(filtrado):
         pt_resul_excluidas.model.df = table_excluidas
 
     pt_resul_excluidas.autoResizeColumns()
+    pt_resul_excluidas.show()
     pt_resul_excluidas.showIndex()
     pt_resul_excluidas.redraw()
+    pt_resul_excluidas.autoResizeColumns()
+    pt_resul_excluidas.show()
 
 
 def process_importa_antigo(path, file1, selected_table):
@@ -270,7 +283,17 @@ def load_tables():
 
         # Seleciona a pasta mdbtools que deve estar na mesma pasta do programa
         path = resource_path('mdbtools\\mdb-export.exe')
-
+        print("path: " + path)
+        test = path.split("\\")
+        path = ""
+        for i in range(len(test)):
+            if " " in test[i]:
+                test[i] = '"' + test[i] + '"'
+            print(test[i])
+            path+= test[i]
+            if i != len(test)-1:
+                path+= "/"
+        print(path)
         if __name__ == '__main__':
 
             # Se as tabelas tiverem mais de 1000 linhas
@@ -290,17 +313,18 @@ def load_tables():
                 p2.join()
             # Caso as tabelas sejam menores importa diretamente
             else:
-                export_command = path
-                export_command += ' ' + file_temp1
-                export_command += ' '
+
+                export_command =   path 
+                export_command += ' ' + file_temp1 + ' '
                 export_command += selected_table + '  > temp1.csv'
                 # executa a linha de comando no cmd
+                print(export_command)
                 subprocess.run(['cmd.exe', '/c', export_command])
 
-                export_command = path
-                export_command += ' ' + file_temp2
-                export_command += ' '
+                export_command =  path 
+                export_command += ' ' + file_temp2 + ' '
                 export_command += selected_table + '  > temp2.csv'
+                print(export_command)
                 subprocess.run(['cmd.exe', '/c', export_command])
         # importa o arquivo csv em um dataframe do pandas e exclui o arquivo
         # o encoding é necessário pois na tabela existe um caracter "°"
@@ -320,7 +344,7 @@ def load_tables():
         # do pandas e exclui o arquivo
         # o encoding é necessário pois na tabela existe um caracter "°"
         table2 = pd.read_csv('temp2.csv', sep=',', encoding='iso-8859-1')
-        os.remove("temp2.csv")
+        #os.remove("temp2.csv")
         # print("tempo para importar " + str((time.time() - start)))
         # Exclui Linhas vazias
         df2 = table2[table2.isna().all(axis=1)]
@@ -497,7 +521,7 @@ width = root.winfo_screenwidth()
 height = root.winfo_screenheight()
 # Faz com que a janela principal tenha o tamanho igual a resolução
 root.geometry("%dx%d" % (width, height))
-root.title("COMPARADOR ACCESS v1.5")
+root.title("COMPARADOR ACCESS v1.5.1")
 # Maximiza a janela principal
 root.state("zoomed")
 
@@ -1247,6 +1271,7 @@ if __name__ == '__main__':
     config.apply_options(options, pt_resul_discrep)
     pt_resul_discrep.show()
     pt_resul_discrep.autoResizeColumns()
+    pt_resul_discrep.show()
     pt_resul_discrep.redraw()
 
     # Label das linhas novas
@@ -1269,6 +1294,7 @@ if __name__ == '__main__':
     config.apply_options(options, pt_resul_novas)
     pt_resul_novas.show()
     pt_resul_novas.autoResizeColumns()
+    pt_resul_novas.show()
     pt_resul_novas.redraw()
 
     # Label das linhas excluidas
