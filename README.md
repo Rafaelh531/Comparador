@@ -33,8 +33,10 @@ O programa abre a janela principal em tela cheia, ao mudar suas dimensões ou mu
 
 DOWNLOAD .exe V1.5 (42Mb): https://drive.google.com/file/d/1-phndCODD8gRbn0LDHusszpRHAW1FQ4F/view?usp=sharing
 
+DOWNLOAD .exe V1.5.1 (42Mb): https://drive.google.com/file/d/1hAnoKSzzSKCoqGOBUZ3HjueojObUBEIo/view?usp=sharing
+
 ### Pacotes necessários:
-`$ pip install subprocess`<br />
+`$ pip install regex`<br />
 `$ pip install pandas`<br />
 `$ pip install tkinter`<br />
 `$ pip install openpyxl`<br />
