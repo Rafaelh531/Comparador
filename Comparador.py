@@ -16,6 +16,7 @@
 # FEITO Arrumar a exportação do relatório
 # FEITO Fazer uma logica de resize e move
 
+from calendar import c
 import subprocess
 import pandas as pd
 import os
@@ -219,10 +220,19 @@ def process_importa_antigo(path, file1, selected_table):
     export_command += ' ' + file1
     export_command += ' '
     export_command += selected_table + '  > temp1.csv'
+    export1 = []
+    #export1.append('cmd.exe')
+    #export1.append('/c')
+    export1.append(path)
+    export1.append(file1)
+    export1.append(selected_table)
+    export1.append(">")
+    export1.append("temp1.csv")
+
+    #print(export1)
     # executa a linha de comando no cmd
-    subprocess.run(['cmd.exe', '/c', export_command], shell=True,
-                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                   stdin=subprocess.PIPE)
+    subprocess.run(export1, shell=True)
+
 
 
 def process_importa_novo(path, file2, selected_table):
@@ -232,10 +242,16 @@ def process_importa_novo(path, file2, selected_table):
     export_command += ' ' + file2
     export_command += ' '
     export_command += selected_table + '  > temp2.csv'
+    export2 = []
+    export2.append(path)
+    export2.append(file2)
+    export2.append(selected_table)
+    export2.append(">")
+    export2.append("temp2.csv")
+
+    #print(export2)
     # subprocess.run(['cmd.exe', '/c', export_command])
-    subprocess.run(['cmd.exe', '/c', export_command], shell=True,
-                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                   stdin=subprocess.PIPE)
+    subprocess.run(export2, shell=True)
 
 
 def load_tables():
@@ -251,51 +267,90 @@ def load_tables():
     file2 = path2
     file_temp1 = path1
     file_temp2 = path2
-
+    export1= []
+    export2 = []
     # Caso a comparação seja em arquivos access:
     if file1.endswith('.accdb'):
-
+        
         # Corrige o nome do arquivo para funcionar o mdb-tools
         # O nome do arquivo não pode ter espaço
-        if " " in file1:
-            file_temp1 = file1.replace(" ", "_")
-            os.rename(file1, file_temp1)
-        if " " in file2:
+        # file =   file1.split("/")
+        # tmp = file[len(file)-1]
 
-            file_temp2 = file2.replace(" ", "_")
-            os.rename(file2, file_temp2)
+        # if " " in file[len(file)-1]:
+        #     file_temp1 =""
+        #     file[len(file)-1] = file[len(file)-1].replace(" ", "_")
+        #     print(file[len(file)-1])
+        #     for i in range(len(file)):
+        #         file_temp1+= file[i]
+        #         if i != len(file)-1:
+        #             file_temp1+= "/"
+        #     os.rename(file1, file_temp1)
+            
+
+
+        # file =   file2.split("/")
+
+        # if " " in file2:
+        #     file_temp2 =""
+        #     file[len(file)-1] = file[len(file)-1].replace(" ", "_")
+        #     for i in range(len(file)):
+        #         file_temp2+= file[i]
+        #         if i != len(file)-1:
+        #             file_temp2+= "/"
+        #     os.rename(file2, file_temp2)
 
         # Pega o numero de linhas em cada tabela
         path = resource_path('mdbtools\\mdb-count.exe')
-        export_command = path
-        export_command += ' ' + file_temp1
-        export_command += ' '
-        export_command += selected_table
-        rows1 = subprocess.check_output(
-                    export_command).decode()
+        # test = path.split("\\")
+        # path = ""
+        # for i in range(len(test)):
+        #     if " " in test[i]:
+        #         test[i] = '"' + test[i] + '"'
+        #     print(test[i])
+        #     path+= test[i]
+        #     if i != len(test)-1:
+        #         path+= "/"
+        # print("T=" +file_temp1)
+        export1.append(path)
+        export2.append(path)
 
         export_command = path
-        export_command += ' ' + file_temp2
-        export_command += ' '
+        export_command += ' "' + file_temp1
+        export1.append(file_temp1)
+        export2.append(file_temp2)
+
+        export_command += '" '
+        export_command += selected_table
+        export1.append(selected_table)
+        export2.append(selected_table)
+
+        #print(export1)
+        rows1 = subprocess.check_output(
+                    export1).decode()
+        
+        #print("ROWS1 = " + rows1)
+
+        export_command = path
+        export_command += ' "' + file_temp2
+        export_command += '" '
         export_command += selected_table
         rows2 = subprocess.check_output(
-                    export_command).decode()
-
+                    export2).decode()
+        #print("ROWS2 = " + rows1)
         # Seleciona a pasta mdbtools que deve estar na mesma pasta do programa
         path = resource_path('mdbtools\\mdb-export.exe')
-        print("path: " + path)
-        test = path.split("\\")
-        path = ""
-        for i in range(len(test)):
-            if " " in test[i]:
-                test[i] = '"' + test[i] + '"'
-            print(test[i])
-            path+= test[i]
-            if i != len(test)-1:
-                path+= "/"
-        print(path)
+        # test = path.split("\\")
+        # path = ""
+        # for i in range(len(test)):
+        #     if " " in test[i]:
+        #         test[i] = '"' + test[i] + '"'
+        #     print(test[i])
+        #     path+= test[i]
+        #     if i != len(test)-1:
+        #         path+= "/"
+        # print(path)
         if __name__ == '__main__':
-
             # Se as tabelas tiverem mais de 1000 linhas
             # importa por dois processos
             if int(rows1) > 1000 or int(rows2) > 1000:
@@ -313,19 +368,23 @@ def load_tables():
                 p2.join()
             # Caso as tabelas sejam menores importa diretamente
             else:
+                    export1 = []
+                    export1.append(path)
+                    export1.append(file_temp1)
+                    export1.append(selected_table)
+                    export1.append(">")
+                    export1.append("temp1.csv")
+                    # executa a linha de comando no cmd
+                    subprocess.run(export1, shell=True)
 
-                export_command =   path 
-                export_command += ' ' + file_temp1 + ' '
-                export_command += selected_table + '  > temp1.csv'
-                # executa a linha de comando no cmd
-                print(export_command)
-                subprocess.run(['cmd.exe', '/c', export_command])
-
-                export_command =  path 
-                export_command += ' ' + file_temp2 + ' '
-                export_command += selected_table + '  > temp2.csv'
-                print(export_command)
-                subprocess.run(['cmd.exe', '/c', export_command])
+                    export2 = []
+                    export2.append(path)
+                    export2.append(file_temp1)
+                    export2.append(selected_table)
+                    export2.append(">")
+                    export2.append("temp2.csv")
+                    # executa a linha de comando no cmd
+                    subprocess.run(export2, shell=True)
         # importa o arquivo csv em um dataframe do pandas e exclui o arquivo
         # o encoding é necessário pois na tabela existe um caracter "°"
         try:
@@ -343,8 +402,12 @@ def load_tables():
         # importa o arquivo csv em um dataframe
         # do pandas e exclui o arquivo
         # o encoding é necessário pois na tabela existe um caracter "°"
-        table2 = pd.read_csv('temp2.csv', sep=',', encoding='iso-8859-1')
-        #os.remove("temp2.csv")
+        try:
+            table2 = pd.read_csv('temp2.csv', sep=',', encoding='iso-8859-1')
+            os.remove("temp2.csv")
+        except Exception:
+            messagebox.showinfo(
+                "ERRO", "nao encontrou aquivo csv2")
         # print("tempo para importar " + str((time.time() - start)))
         # Exclui Linhas vazias
         df2 = table2[table2.isna().all(axis=1)]
@@ -521,7 +584,7 @@ width = root.winfo_screenwidth()
 height = root.winfo_screenheight()
 # Faz com que a janela principal tenha o tamanho igual a resolução
 root.geometry("%dx%d" % (width, height))
-root.title("COMPARADOR ACCESS v1.5.1")
+root.title("COMPARADOR ACCESS v1.5.2")
 # Maximiza a janela principal
 root.state("zoomed")
 
@@ -1333,7 +1396,6 @@ if __name__ == '__main__':
         global width, height
         global scroll, canvas1
         if (width != root.winfo_width()) and (height != root.winfo_width()):
-            # print("here")
             width = event.width
             height = event.height
             factor = 2.95
